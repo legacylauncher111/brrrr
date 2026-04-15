@@ -65,7 +65,9 @@ local Settings = {
     TeleportTarget = nil,
     TeleportEnabled = false,
     BigHeadsEnabled = false,
-    HeadSize = 2
+    HeadSize = 2,
+    RivalsSmoothness = 0.4,
+    RivalsFOV = 200
 }
 
 local ESPSettings = {
@@ -424,8 +426,10 @@ local function HasForceField(character)
         end
     end
     
+    -- Проверка на наличие эффектов свечения (часто используется для FF)
     for _, part in ipairs(character:GetChildren()) do
         if part:IsA("BasePart") then
+            -- Проверка на Highlight с определенными свойствами
             for _, child in ipairs(part:GetChildren()) do
                 if child:IsA("Highlight") then
                     if child.Name:lower():find("shield") or 
@@ -528,8 +532,9 @@ local function GetTargetUnderMouse()
     return closestPlayer
 end
 
+-- 🟢 ОПТИМИЗИРОВАНО: Raycast раз в 50мс + все проверки
 local lastRaycastTime = 0
-local RAYCAST_COOLDOWN = 0.05 
+local RAYCAST_COOLDOWN = 0.05 -- 50мс = 20 проверок в секунду
 local function GetAimbotTarget()
     if Settings.SpecificTarget then
         local target = Players:FindFirstChild(Settings.SpecificTarget)
@@ -543,7 +548,7 @@ local function GetAimbotTarget()
     end
     
     local closestPlayer = nil
-    local closestDist = Settings.FOV
+    local closestDist = Settings.AimbotMode == "Rivals" and Settings.RivalsFOV or Settings.FOV
     local mousePos = UserInputService:GetMouseLocation()
     local camPos = Camera.CFrame.Position
     local myTeam = LocalPlayer.Team
@@ -579,7 +584,7 @@ local function GetAimbotTarget()
         if not onScreen then continue end
         
         local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-        if dist > Settings.FOV or dist >= closestDist then continue end
+        if dist > (Settings.AimbotMode == "Rivals" and Settings.RivalsFOV or Settings.FOV) or dist >= closestDist then continue end
         
         if Settings.WallCheck then
             wallParams.FilterDescendantsInstances = {LocalPlayer.Character, cache.Character}
@@ -659,25 +664,36 @@ local function AimAtTarget()
     end
     
     pcall(function()
-        local camPos = Camera.CFrame.Position
-        local dir = (targetPos - camPos).Unit
-        local goal = CFrame.new(camPos, camPos + dir)
-        
-        if Settings.AimbotMode == "Strong" then
-            Camera.CFrame = goal
-        elseif Settings.AimbotMode == "Light" then
-            Camera.CFrame = Camera.CFrame:Lerp(goal, Settings.Smoothness)
-        elseif Settings.AimbotMode == "Flick" then
-            if math.random(1, 100) <= Settings.SilentAimHitChance then
-                Camera.CFrame = Camera.CFrame:Lerp(goal, Settings.FlickAimSpeed)
+        if Settings.AimbotMode == "Rivals" then
+            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
+            if onScreen then
+                local mousePos = UserInputService:GetMouseLocation()
+                local deltaX = screenPos.X - mousePos.X
+                local deltaY = screenPos.Y - mousePos.Y
+                local smoothness = Settings.RivalsSmoothness
+                mousemoverel(deltaX * smoothness, deltaY * smoothness)
             end
-        elseif Settings.AimbotMode == "Humanized" then
-            local jitter = Vector3.new(
-                (math.random() * 2 - 1) * Settings.HumanizerIntensity,
-                (math.random() * 2 - 1) * Settings.HumanizerIntensity,
-                (math.random() * 2 - 1) * Settings.HumanizerIntensity
-            )
-            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(camPos, camPos + dir + jitter), Settings.Smoothness)
+        else
+            local camPos = Camera.CFrame.Position
+            local dir = (targetPos - camPos).Unit
+            local goal = CFrame.new(camPos, camPos + dir)
+            
+            if Settings.AimbotMode == "Strong" then
+                Camera.CFrame = goal
+            elseif Settings.AimbotMode == "Light" then
+                Camera.CFrame = Camera.CFrame:Lerp(goal, Settings.Smoothness)
+            elseif Settings.AimbotMode == "Flick" then
+                if math.random(1, 100) <= Settings.SilentAimHitChance then
+                    Camera.CFrame = Camera.CFrame:Lerp(goal, Settings.FlickAimSpeed)
+                end
+            elseif Settings.AimbotMode == "Humanized" then
+                local jitter = Vector3.new(
+                    (math.random() * 2 - 1) * Settings.HumanizerIntensity,
+                    (math.random() * 2 - 1) * Settings.HumanizerIntensity,
+                    (math.random() * 2 - 1) * Settings.HumanizerIntensity
+                )
+                Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(camPos, camPos + dir + jitter), Settings.Smoothness)
+            end
         end
     end)
 end
@@ -1051,6 +1067,7 @@ local function UpdateESP()
     end
 end
 
+-- ==================== END OF FINAL ELITE ESP ====================
 
 local function ApplyOptimization()
     if VisualSettings.OptimizationMode then
@@ -2555,16 +2572,17 @@ local pageC = createTab("Misc", "M")
 local pageD = createTab("Settings", "S")
 
 createToggle(pageA, pageA, "aim_enabled", "Aimbot Enabled", "Master switch for aimbot", Settings.Enabled, function(v) Settings.Enabled = v; SaveSettings() end)
-createDropdown(pageA, pageA, "aim_mode", "Aimbot Mode", "Strong / Light / Flick / Silent / Humanized", 
-    {"Strong", "Light", "Flick", "Silent", "Humanized"}, Settings.AimbotMode, function(v) Settings.AimbotMode = v; SaveSettings() end)
+createDropdown(pageA, pageA, "aim_mode", "Aimbot Mode", "Strong / Light / Flick / Humanized / Rivals", 
+    {"Strong", "Light", "Flick", "Humanized", "Rivals"}, Settings.AimbotMode, function(v) Settings.AimbotMode = v; SaveSettings() end)
 createDropdown(pageA, pageA, "aim_target", "Target Part", "Head / Root / Torso / Random / Nearest", 
     {"Head", "HumanoidRootPart", "UpperTorso", "Random", "Nearest"}, Settings.TargetPart, function(v) Settings.TargetPart = v; SaveSettings() end)
 createSlider(pageA, pageA, "aim_fov", "FOV", "Field of view radius (pixels)", 10, 500, Settings.FOV, function(v) Settings.FOV = v; SaveSettings() end, function(v) return string.format("%.0f", v) end)
+createSlider(pageA, pageA, "rivals_fov", "Rivals FOV", "FOV for Rivals mode", 10, 500, Settings.RivalsFOV, function(v) Settings.RivalsFOV = v; SaveSettings() end, function(v) return string.format("%.0f", v) end)
 createSlider(pageA, pageA, "aim_smooth", "Smoothness", "Aim smoothness (0.1-1.0)", 0.1, 1, Settings.Smoothness, function(v) Settings.Smoothness = v; SaveSettings() end, function(v) return string.format("%.2f", v) end)
+createSlider(pageA, pageA, "rivals_smoothness", "Rivals Smoothness", "Mouse smoothness for Rivals", 0.1, 1, Settings.RivalsSmoothness, function(v) Settings.RivalsSmoothness = v; SaveSettings() end, function(v) return string.format("%.2f", v) end)
 createToggle(pageA, pageA, "aim_teamcheck", "Team Check", "Don't aim at teammates", Settings.TeamCheck, function(v) Settings.TeamCheck = v; SaveSettings() end)
 createToggle(pageA, pageA, "aim_friends", "Ignore Friends", "Don't aim at friends", Settings.IgnoreFriends, function(v) Settings.IgnoreFriends = v; SaveSettings() end)
 createToggle(pageA, pageA, "aim_knocked", "Ignore Knocked", "Skip knocked players", Settings.IgnoreKnocked, function(v) Settings.IgnoreKnocked = v; SaveSettings() end)
--- 🟢 НОВОЕ: Переключатель Ignore FF
 createToggle(pageA, pageA, "aim_ignore_ff", "Ignore Force Field", "Don't aim at players with force field/shield", Settings.IgnoreFF, function(v) Settings.IgnoreFF = v; SaveSettings() end)
 createToggle(pageA, pageA, "aim_autoaim", "Auto Aim", "Aim automatically when key held", Settings.AutoAim, function(v) Settings.AutoAim = v; SaveSettings() end)
 createKeybind(pageA, pageA, "aim_autoaim_key", "Auto Aim Key", "Key for auto aim", Settings.AutoAimKeybind, function(v) Settings.AutoAimKeybind = v; SaveSettings() end)
@@ -2829,7 +2847,7 @@ local function UpdateFOVCircle()
     
     FOVCircle.Visible = Settings.ShowFOV
     FOVCircle.Transparency = Settings.FOVTransparency
-    FOVCircle.Radius = Settings.FOV
+    FOVCircle.Radius = Settings.AimbotMode == "Rivals" and Settings.RivalsFOV or Settings.FOV
     
     local mousePos = UserInputService:GetMouseLocation()
     FOVCircle.Position = Vector2.new(mousePos.X, mousePos.Y)
