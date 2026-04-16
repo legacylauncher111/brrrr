@@ -409,7 +409,6 @@ end
 local function HasForceField(character)
     if not character then return false end
     
-    -- Проверка на наличие ForceField объекта
     for _, child in ipairs(character:GetChildren()) do
         if child:IsA("ForceField") then
             return true
@@ -426,10 +425,8 @@ local function HasForceField(character)
         end
     end
     
-    -- Проверка на наличие эффектов свечения (часто используется для FF)
     for _, part in ipairs(character:GetChildren()) do
         if part:IsA("BasePart") then
-            -- Проверка на Highlight с определенными свойствами
             for _, child in ipairs(part:GetChildren()) do
                 if child:IsA("Highlight") then
                     if child.Name:lower():find("shield") or 
@@ -532,10 +529,8 @@ local function GetTargetUnderMouse()
     return closestPlayer
 end
 
--- 🟢 ОПТИМИЗИРОВАНО: Raycast раз в 50мс + все проверки
 local lastRaycastTime = 0
-local RAYCAST_COOLDOWN = 0.05 -- 50мс = 20 проверок в секунду
-local function GetAimbotTarget()
+local RAYCAST_COOLDOWN = 0.05
     if Settings.SpecificTarget then
         local target = Players:FindFirstChild(Settings.SpecificTarget)
         if target and target.Character then
@@ -595,7 +590,6 @@ local function GetAimbotTarget()
             if raycastResult then
                 local hitPart = raycastResult.Instance
                 local hitModel = hitPart:FindFirstAncestorOfClass("Model")
-                -- Если попали НЕ в таргета, значит стена
                 if hitModel ~= cache.Character then
                     continue
                 end
@@ -736,7 +730,6 @@ local function AutoKill()
     end
 end
 
--- ==================== FINAL ELITE ESP CORE ====================
 local function CreateDrawing(class, props)
     local d = Drawing.new(class)
     for i, v in pairs(props) do 
@@ -945,7 +938,6 @@ local function UpdateESP()
             continue
         end
         
-        -- BoundingBox метод
         local cf, size = char:GetBoundingBox()
         if not cf then
             for _, d in pairs(drawings) do d.Visible = false end
@@ -966,7 +958,6 @@ local function UpdateESP()
             local boxHeight = math.abs(top.Y - bottom.Y)
             local boxWidth = boxHeight * 0.55
             
-            -- Box ESP
             if ESPSettings.BoxESP then
                 local color = GetColor(ESPSettings.BoxColor)
                 drawings.Box.Visible = true
@@ -984,7 +975,6 @@ local function UpdateESP()
                 drawings.BoxOutline.Visible = false
             end
             
-            -- Health Bar
             if ESPSettings.DisplayHealth and ESPSettings.BoxESP then
                 local healthPercent = hum.Health / hum.MaxHealth
                 local barHeight = boxHeight * healthPercent
@@ -1002,7 +992,6 @@ local function UpdateESP()
                 drawings.HealthBarOutline.Visible = false
             end
             
-            -- Name and Distance
             if ESPSettings.DisplayName then
                 drawings.Name.Visible = true
                 drawings.Name.Size = ESPSettings.TextSize
@@ -1024,7 +1013,6 @@ local function UpdateESP()
                 drawings.Name.Visible = false
             end
             
-            -- Tracers
             if ESPSettings.Tracers then
                 drawings.Tracer.Visible = true
                 drawings.Tracer.Color = GetColorByDistance(dist)
@@ -1055,7 +1043,6 @@ local function UpdateESP()
                 drawings.Tracer.Visible = false
             end
             
-            -- Effects
             if ESPSettings.HighlightPlayers then AddHighlight(char) else RemoveHighlight(char) end
             if ESPSettings.Chams then AddChams(char) else RemoveChams(char) end
             if ESPSettings.GlowChams then AddGlowChams(char) else RemoveGlowChams(char) end
@@ -1067,7 +1054,6 @@ local function UpdateESP()
     end
 end
 
--- ==================== END OF FINAL ELITE ESP ====================
 
 local function ApplyOptimization()
     if VisualSettings.OptimizationMode then
@@ -2888,14 +2874,12 @@ local function UpdateCrosshair()
     Crosshair.Position = Vector2.new(screenSize.X / 2, screenSize.Y / 2)
 end
 
--- Initialize ESP
 for _, player in pairs(Players:GetPlayers()) do
     ConstructESP(player)
 end
 Players.PlayerAdded:Connect(ConstructESP)
 Players.PlayerRemoving:Connect(RemoveESP)
 
--- Character Added handler
 Players.PlayerAdded:Connect(function(player)
     player.CharacterAdded:Connect(function(character)
         task.wait(0.5)
