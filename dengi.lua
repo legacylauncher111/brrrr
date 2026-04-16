@@ -530,7 +530,8 @@ local function GetTargetUnderMouse()
 end
 
 local lastRaycastTime = 0
-local RAYCAST_COOLDOWN = 0.05
+local RAYCAST_COOLDOWN = 0.05 
+local function GetAimbotTarget()
     if Settings.SpecificTarget then
         local target = Players:FindFirstChild(Settings.SpecificTarget)
         if target and target.Character then
@@ -958,6 +959,7 @@ local function UpdateESP()
             local boxHeight = math.abs(top.Y - bottom.Y)
             local boxWidth = boxHeight * 0.55
             
+            -- боксы
             if ESPSettings.BoxESP then
                 local color = GetColor(ESPSettings.BoxColor)
                 drawings.Box.Visible = true
