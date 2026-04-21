@@ -253,7 +253,7 @@ local function LoadSettings()
     return false, nil
 end
 
-local AuthKey = "AXN-4rTn00B-K7x92Lp"
+local AuthKey = "artnoob"
 local Authorized = false
 local loadedAuthorized, savedUserId = LoadSettings()
 if loadedAuthorized and savedUserId == LocalPlayer.UserId then
